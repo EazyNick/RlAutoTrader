@@ -31,6 +31,14 @@
   - `pip install mplfinance`
 - [PyTorch](https://pytorch.org/)
 
+### Example Setup
+
+```
+conda create -n rltrader python=3.10.10
+conda activate rltrader
+conda install pytorch==2.0.1 torchvision==0.15.2 torchaudio==2.0.2 pytorch-cuda=11.7 -c pytorch -c nvidia
+```
+
 # 개발 환경
 
 - Python 3.6+

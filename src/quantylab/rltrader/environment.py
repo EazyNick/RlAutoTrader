@@ -19,5 +19,5 @@ class Environment:
 
     def get_price(self):
         if self.observation is not None:
-            return self.observation[self.PRICE_IDX]
+            return self.observation.iloc[self.PRICE_IDX]
         return None

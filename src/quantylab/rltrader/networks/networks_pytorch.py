@@ -3,6 +3,7 @@ import abc
 import numpy as np
 
 import torch
+import torch.nn.functional as F
 
 
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
@@ -11,17 +12,18 @@ device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 class Network:
     lock = threading.Lock()
 
-    def __init__(self, input_dim=0, output_dim=0, lr=0.001, 
+    def __init__(self, input_dim=0, output_dim=0, num_steps=1, lr=0.001, 
                 shared_network=None, activation='sigmoid', loss='mse'):
         self.input_dim = input_dim
         self.output_dim = output_dim
+        self.num_steps = num_steps
         self.lr = lr
         self.shared_network = shared_network
         self.activation = activation
         self.loss = loss
         
         inp = None
-        if hasattr(self, 'num_steps'):
+        if self.num_steps > 1:
             inp = (self.num_steps, input_dim)
         else:
             inp = (self.input_dim,)
@@ -70,17 +72,45 @@ class Network:
             return pred
 
     def train_on_batch(self, x, y):
+        if self.num_steps > 1:
+            x = np.array(x).reshape((-1, self.num_steps, self.input_dim))
+        else:
+            x = np.array(x).reshape((-1, self.input_dim))
         loss = 0.
         with self.lock:
             self.model.train()
-            x = torch.from_numpy(x).float().to(device)
-            y = torch.from_numpy(y).float().to(device)
-            y_pred = self.model(x)
-            _loss = self.criterion(y_pred, y)
+            _x = torch.from_numpy(x).float().to(device)
+            _y = torch.from_numpy(y).float().to(device)
+            y_pred = self.model(_x)
+            _loss = self.criterion(y_pred, _y)
             self.optimizer.zero_grad()
             _loss.backward()
             self.optimizer.step()
             loss += _loss.item()
+        return loss
+
+    def train_on_batch_for_ppo(self, x, y, a, eps, K):
+        if self.num_steps > 1:
+            x = np.array(x).reshape((-1, self.num_steps, self.input_dim))
+        else:
+            x = np.array(x).reshape((-1, self.input_dim))
+        loss = 0.
+        with self.lock:
+            self.model.train()
+            _x = torch.from_numpy(x).float().to(device)
+            _y = torch.from_numpy(y).float().to(device)
+            probs = F.softmax(_y, dim=1)
+            for _ in range(K):
+                y_pred = self.model(_x)
+                probs_pred = F.softmax(y_pred, dim=1)
+                rto = torch.exp(torch.log(probs[:, a]) - torch.log(probs_pred[:, a]))
+                rto_adv = rto * _y[:, a]
+                clp_adv = torch.clamp(rto, 1 - eps, 1 + eps) * _y[:, a]
+                _loss = -torch.min(rto_adv, clp_adv).mean()
+                self.optimizer.zero_grad()
+                _loss.backward()
+                self.optimizer.step()
+                loss += _loss.item()
         return loss
 
     @classmethod
@@ -133,18 +163,13 @@ class DNN(Network):
             torch.nn.Linear(32, output_dim),
         )
 
-    def train_on_batch(self, x, y):
-        x = np.array(x).reshape((-1, self.input_dim))
-        return super().train_on_batch(x, y)
-
     def predict(self, sample):
         sample = np.array(sample).reshape((1, self.input_dim))
         return super().predict(sample)
 
 
 class LSTMNetwork(Network):
-    def __init__(self, *args, num_steps=1, **kwargs):
-        self.num_steps = num_steps
+    def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
     @staticmethod
@@ -162,10 +187,6 @@ class LSTMNetwork(Network):
             torch.nn.Dropout(p=0.1),
             torch.nn.Linear(32, output_dim),
         )
-
-    def train_on_batch(self, x, y):
-        x = np.array(x).reshape((-1, self.num_steps, self.input_dim))
-        return super().train_on_batch(x, y)
 
     def predict(self, sample):
         sample = np.array(sample).reshape((-1, self.num_steps, self.input_dim))
@@ -185,8 +206,7 @@ class LSTMModule(torch.nn.LSTM):
 
 
 class CNN(Network):
-    def __init__(self, *args, num_steps=1, **kwargs):
-        self.num_steps = num_steps
+    def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
     @staticmethod
@@ -209,10 +229,6 @@ class CNN(Network):
             torch.nn.Dropout(p=0.1),
             torch.nn.Linear(32, output_dim),
         )
-
-    def train_on_batch(self, x, y):
-        x = np.array(x).reshape((-1, self.num_steps, self.input_dim))
-        return super().train_on_batch(x, y)
 
     def predict(self, sample):
         sample = np.array(sample).reshape((1, self.num_steps, self.input_dim))

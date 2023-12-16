@@ -285,7 +285,7 @@ def load_data_v3_v4(code, date_from, date_to, ver):
     df = df.sort_values(by='date').reset_index(drop=True)
 
     # NaN 처리
-    df = df.fillna(method='ffill').fillna(method='bfill').reset_index(drop=True)
+    df = df.ffill().bfill().reset_index(drop=True)
     df = df.fillna(0)
 
     # 기간 필터링

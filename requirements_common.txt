@@ -3,4 +3,4 @@ pandas
 matplotlib
 mplfinance
 tqdm
-sklearn
+scikit-learn
