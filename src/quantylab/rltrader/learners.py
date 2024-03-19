@@ -17,10 +17,31 @@ from src.quantylab.rltrader import settings
 logger = logging.getLogger(settings.LOGGER_NAME)
 
 class ReinforcementLearner:
+    # 추상 클래스 선언, 상속을 통해 인스턴스 생성 가능
     __metaclass__ = abc.ABCMeta
+    # 멀티 스레딩 환경에서 동시성을 관리하기 위한 락(lock) 객체
     lock = threading.Lock()
 
     # 학습 환경, 에이전트, 신경망 등의 초기화
+    # rl_method : 사용할 강화학습 메서드의 이름
+    # stock_code: 학습 대상 주식의 코드
+    # chart_data: 주식 가격 차트 데이터
+    # training_data: 학습에 사용될 데이터
+    # min_trading_price: 거래 가능한 최소 주식 가격
+    # max_trading_price: 거래 가능한 최대 주식 가격
+    # net: 사용할 신경망의 종류를 지정, 'dnn'은 심층 신경망, 'lstm'은 장단기 메모리 네트워크, 'cnn'은 합성곱 신경망
+    # num_steps: 한 번에 고려할 시간 스텝의 수. 이 값은 주로 LSTM 같은 순차 데이터를 처리하는 신경망에서 사용
+    # lr: 학습률(learning rate), 신경망 학습 시 가중치 조정의 정도를 결정
+    # discount_factor: 할인율, 미래 보상을 현재 가치로 환산할 때 사용되는 계수
+    # num_epoches: 학습을 수행할 에포크 수, 한 에포크는 전체 학습 데이터를 한 번씩 사용하는 것을 의미
+    # balance: 에이전트의 초기 자본금
+    # start_epsilon: 탐험을 위한 엡실론의 초기값입니다. 높은 값은 에이전트가 무작위 행동을 더 많이 선택
+    # value_network와 policy_network: 가치 신경망과 정책 신경망의 인스턴스입니다. 이들은 각각 상태 가치와 행동 정책을 예측하는 데 사용
+    # value_network_activation과 policy_network_activation: 각 신경망의 출력층에서 사용될 활성화 함수
+    # output_path: 학습 결과나 모델을 저장할 경로
+    # reuse_models: 이전에 학습된 모델을 재사용할지 여부를 결정합니다. 모델 파일이 output_path에 존재하면 해당 모델을 불러와서 사용
+    # gen_output: 학습 과정이나 결과를 출력할지 여부를 결정합니다. 시각화 결과나 로그를 저장할지 여부에 사용
+
     def __init__(self, rl_method='rl', stock_code=None, 
                 chart_data=None, training_data=None,
                 min_trading_price=100000, max_trading_price=10000000, 
