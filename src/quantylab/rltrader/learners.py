@@ -7,21 +7,20 @@ import time
 import json
 import numpy as np
 from tqdm import tqdm
-from quantylab.rltrader.environment import Environment
-from quantylab.rltrader.agent import Agent
-from quantylab.rltrader.networks import Network, DNN, LSTMNetwork, CNN
-from quantylab.rltrader.visualizer import Visualizer
-from quantylab.rltrader import utils
-from quantylab.rltrader import settings
-
+from src.quantylab.rltrader.environment import Environment
+from src.quantylab.rltrader.agent import Agent
+from src.quantylab.rltrader.networks import Network, DNN, LSTMNetwork, CNN
+from src.quantylab.rltrader.visualizer import Visualizer
+from src.quantylab.rltrader import utils
+from src.quantylab.rltrader import settings
 
 logger = logging.getLogger(settings.LOGGER_NAME)
-
 
 class ReinforcementLearner:
     __metaclass__ = abc.ABCMeta
     lock = threading.Lock()
 
+    # 학습 환경, 에이전트, 신경망 등의 초기화
     def __init__(self, rl_method='rl', stock_code=None, 
                 chart_data=None, training_data=None,
                 min_trading_price=100000, max_trading_price=10000000, 
@@ -85,6 +84,7 @@ class ReinforcementLearner:
         self.output_path = output_path
         self.gen_output = gen_output
 
+    # 가치(Value) 신경망 초기화
     def init_value_network(self, shared_network=None, loss='mse'):
         if self.net == 'dnn':
             self.value_network = DNN(
@@ -109,6 +109,7 @@ class ReinforcementLearner:
         if self.reuse_models and os.path.exists(self.value_network_path):
             self.value_network.load_model(model_path=self.value_network_path)
 
+    # 정책(Policy) 신경망 초기화
     def init_policy_network(self, shared_network=None, loss='binary_crossentropy'):
         if self.net == 'dnn':
             self.policy_network = DNN(
@@ -133,6 +134,7 @@ class ReinforcementLearner:
         if self.reuse_models and os.path.exists(self.policy_network_path):
             self.policy_network.load_model(model_path=self.policy_network_path)
 
+    # 에포크마다 학습 환경과 에이전트, 메모리 등을 초기화
     def reset(self):
         self.sample = None
         self.training_data_idx = -1
@@ -157,6 +159,7 @@ class ReinforcementLearner:
         self.exploration_cnt = 0
         self.batch_size = 0
 
+    # 학습 샘플을 구축
     def build_sample(self):
         self.environment.observe()
         if len(self.training_data) > self.training_data_idx + 1:
@@ -166,10 +169,15 @@ class ReinforcementLearner:
             return self.sample
         return None
 
+    # 학습을 위한 배치 데이터를 준비
+    # '@abc.abstractmethod' 이 데코레이터가 적용된 메서드는 해당 클래스가 상속될 때 반드시 구현되어야 함
+    # @abc.abstractmethod로 표시된 메서드를 포함하는 클래스는 추상 클래스가 되며, 이 클래스를 직접 인스턴스화할 수 없음 
+    # 이 클래스를 상속받는 하위 클래스에서 해당 메서드를 구현해야만 해당 하위 클래스의 인스턴스를 생성할 수 있습니다.
     @abc.abstractmethod
     def get_batch(self):
         pass
 
+    # 신경망을 학습
     def fit(self):
         # 배치 학습 데이터 생성
         x, y_value, y_policy = self.get_batch()
@@ -185,6 +193,7 @@ class ReinforcementLearner:
                 loss += self.policy_network.train_on_batch(x, y_policy)
             self.loss = loss
 
+    # 학습 과정을 시각화
     def visualize(self, epoch_str, num_epoches, epsilon):
         self.memory_action = [Agent.ACTION_HOLD] * (self.num_steps - 1) + self.memory_action
         self.memory_num_stocks = [0] * (self.num_steps - 1) + self.memory_num_stocks
@@ -331,12 +340,14 @@ class ReinforcementLearner:
             logger.debug(f'[{self.stock_code}] Elapsed Time:{elapsed_time:.4f} '
                 f'Max PV:{max_portfolio_value:,.0f} #Win:{epoch_win_cnt}')
 
+    # 학습된 모델을 저장하고
     def save_models(self):
         if self.value_network is not None and self.value_network_path is not None:
             self.value_network.save_model(self.value_network_path)
         if self.policy_network is not None and self.policy_network_path is not None:
             self.policy_network.save_model(self.policy_network_path)
 
+    # 예측을 수행
     def predict(self):
         # 에이전트 초기화
         self.agent.reset()
@@ -462,7 +473,7 @@ class ActorCriticLearner(ReinforcementLearner):
             value_max_next = value.max()
         return x, y_value, y_policy
 
-
+# A3CLearner는 멀티 스레딩을 사용하여 여러 주식 코드에 대한 A2C 학습을 동시에 진행할 수 있게 구현
 class A2CLearner(ActorCriticLearner):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
