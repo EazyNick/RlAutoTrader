@@ -1,5 +1,5 @@
 import numpy as np
-from quantylab.rltrader import utils
+from src.quantylab.rltrader import utils
 
 
 class Agent:
@@ -59,6 +59,7 @@ class Agent:
     def set_balance(self, balance):
         self.initial_balance = balance
 
+    # 에이전트의 현재 상태를 반환
     def get_states(self):
         self.ratio_hold = self.num_stocks * self.environment.get_price() \
             / self.portfolio_value
@@ -69,7 +70,14 @@ class Agent:
                 if self.avg_buy_price > 0 else 0
         )
 
+    # 에이전트가 취할 행동을 결정
     def decide_action(self, pred_value, pred_policy, epsilon):
+        """
+        예측된 가치(pred_value)
+        정책(pred_policy)
+        탐험(epsilon
+        """
+        # 행동의 확신도
         confidence = 0.
 
         pred = pred_policy
@@ -105,6 +113,7 @@ class Agent:
 
         return action, confidence, exploration
 
+    # 결정된 행동이 유효한지 검사합니다. 매수 시 보유 현금이 충분한지, 매도 시 보유 주식이 있는지 확인합니다.
     def validate_action(self, action):
         if action == Agent.ACTION_BUY:
             # 적어도 1주를 살 수 있는지 확인
@@ -116,6 +125,7 @@ class Agent:
                 return False
         return True
 
+    # 매수 또는 매도할 주식 수(거래 단위)를 결정합니다. 확신도(confidence)에 따라 달라지며, 최소 거래 가격과 최대 거래 가격 사이에서 결정
     def decide_trading_unit(self, confidence):
         if np.isnan(confidence):
             return self.min_trading_price
@@ -125,6 +135,7 @@ class Agent:
         trading_price = self.min_trading_price + added_trading_price
         return max(int(trading_price / self.environment.get_price()), 1)
 
+    # 행동 실행
     def act(self, action, confidence):
         if not self.validate_action(action):
             action = Agent.ACTION_HOLD
