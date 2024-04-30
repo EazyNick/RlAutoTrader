@@ -1,3 +1,7 @@
+# """
+# 신경망 모듈
+# """
+
 import threading
 import abc
 import numpy as np
@@ -5,9 +9,7 @@ import numpy as np
 import torch
 import torch.nn.functional as F
 
-
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-
 
 class Network:
     lock = threading.Lock()

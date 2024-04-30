@@ -1,3 +1,10 @@
+# """
+# 신경망 모듈
+# 상태 가치 함수 : 에이전트가 놓인 상태에서 에이전트가 최적의 상황을 선택했을 때 예상되는 누적 보상
+#                 이를 통해 각 상태의 가치를 학습함
+# 행동 가치 함수 : 에이전트가 특정 행동을 취했을 때 기대할 수 있는 누적 보상
+# """
+
 import os
 import threading
 import numpy as np
@@ -19,6 +26,14 @@ elif os.environ['KERAS_BACKEND'] == 'plaidml.keras.backend':
 
 class Network:
     lock = threading.Lock()
+
+    # predict: 주어진 샘플에 대해 예측을 수행합니다. self.model.predict_on_batch(sample)를 사용하여 배치에 대한 예측을 수행하고, 
+    # 결과를 평탄화(flatten)합니다.
+    # train_on_batch: 주어진 데이터(x, y)에 대해 모델을 한 배치(batch) 동안 학습합니다. self.model.fit을 사용하여 모델을 학습하고, 
+    # 발생한 손실을 반환합니다.
+    # save_model: 모델의 가중치를 지정된 경로에 저장합니다.
+    # load_model: 지정된 경로에서 모델의 가중치를 불러옵니다.
+    # get_shared_network: 정적 메서드로, 주어진 네트워크 유형(net)에 따라 공유 신경망 구조를 생성하고 반환합니다.
 
     def __init__(self, input_dim=0, output_dim=0, lr=0.001, 
                 shared_network=None, activation='sigmoid', loss='mse'):

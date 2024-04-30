@@ -1,3 +1,8 @@
+# """
+# 학습기 모듈
+# 학습 데이터를 가지고 있으며, 보상이 결정됐을 때 학습 데이터로 신경망을 학습시킴
+# """
+
 import os
 import logging
 import abc

@@ -1,3 +1,7 @@
+# """
+# 가시화 모듈
+# """
+
 import threading
 import numpy as np
 import matplotlib.pyplot as plt

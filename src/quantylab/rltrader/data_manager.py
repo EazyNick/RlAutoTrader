@@ -1,3 +1,8 @@
+# """
+# 데이터 관리 모듈
+# 차트 데이터 불러오는 모듈
+# """
+
 import os
 import pandas as pd
 import numpy as np
