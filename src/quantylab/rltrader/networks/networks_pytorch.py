@@ -278,10 +278,10 @@ class LSTMModule(torch.nn.LSTM):
         self.use_last_only = use_last_only
 
     def forward(self, x):
-        output, (h_n, _) = super().forward(x)
+        output, (h_n, _) = super().forward(x) # 입력 데이터 x를 순전파(입력층 > 출력층)처리하고 결과를 반환
         if self.use_last_only:
             return h_n[-1]
-        return output
+        return output # 각 시간 단계마다의 출력을 모두 포함하는 텐서 형식
 
 
 class CNN(Network):

@@ -29,6 +29,9 @@ class Visualizer:
         self.xlabels = []
 
     def prepare(self, chart_data, title):
+        """
+        fig(Figure)를 초기화하고 일봉 차트를 출력
+        """
         self.title = title
         with lock:
             # 캔버스를 초기화하고 5개의 차트를 그릴 준비
@@ -63,6 +66,9 @@ class Visualizer:
             action_list=None, actions=None, num_stocks=None,
             outvals_value=[], outvals_policy=[], exps=None, 
             initial_balance=None, pvs=None):
+        """
+        일봉 차트를 제외한 나머지 차트를 출력
+        """
         with lock:
             actions = np.array(actions)  # 에이전트의 행동 배열
             # 가치 신경망의 출력 배열

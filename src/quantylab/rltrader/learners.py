@@ -112,6 +112,11 @@ class ReinforcementLearner:
 
     # 가치(Value) 신경망 초기화
     def init_value_network(self, shared_network=None, loss='mse'):
+        """
+        Mean Squared Error (MSE)는 연속적인 수치 값을 예측하는 회귀 문제에서 주로 사용되는 손실 함수
+
+
+        """
         if self.net == 'dnn':
             self.value_network = DNN(
                 input_dim=self.num_features, 
@@ -137,6 +142,9 @@ class ReinforcementLearner:
 
     # 정책(Policy) 신경망 초기화
     def init_policy_network(self, shared_network=None, loss='binary_crossentropy'):
+        """
+        Binary Crossentropy는 이진 분류 문제에서 사용되는 손실 함수로, 모델이 예측한 확률을 실제 레이블과 비교하여 손실을 계산
+        """
         if self.net == 'dnn':
             self.policy_network = DNN(
                 input_dim=self.num_features, 
@@ -628,7 +636,8 @@ class PPOLearner(A2CLearner):
     
     def fit(self):
         # 배치 학습 데이터 생성
-        x, y_value, y_policy = self.get_batch()
+        # x : 입력 피처(feature), y_value : 가치 신경망 출력, y_policy: 정책 신경망 출력
+        x, y_value, y_policy = self.get_batch()  
         # 손실 초기화
         self.loss = None
         if len(x) > 0:

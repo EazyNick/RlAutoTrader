@@ -9,7 +9,7 @@ import os
 import threading
 import numpy as np
 
-
+# 첫번째 환경변수 인자가 없으면, 두번째 인자 반환
 if os.environ.get('KERAS_BACKEND', 'tensorflow') == 'tensorflow':
     from tensorflow.keras.models import Model
     from tensorflow.keras.layers import Input, Dense, LSTM, Conv1D, \
@@ -115,11 +115,12 @@ class DNN(Network):
         return Model(inp, output)
 
     def train_on_batch(self, x, y):
-        x = np.array(x).reshape((-1, self.input_dim))
+        x = np.array(x).reshape((-1, self.input_dim)) # 
         return super().train_on_batch(x, y)
 
     def predict(self, sample):
-        sample = np.array(sample).reshape((1, self.input_dim))
+        sample = np.array(sample).reshape((1, self.input_dim)) # 1차원 배열 > 2차원 배열로 변환, 모델의 입력값 형태가 2차원으로 정해져 있기 때문임
+        # ex) (1 input_dim) 2차원 배열로 반환
         return super().predict(sample)
     
 
