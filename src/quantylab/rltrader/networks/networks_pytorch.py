@@ -93,38 +93,53 @@ class Network:
 
     def predict(self, sample):
         """
-        신경망을 통해 투자 행동별 가치나 확률 계산  
+        신경망을 통해 투자 행동별(매수, 매도, 관망) 예측값 반환
+        가치 신경망의 경우 샘플에 대한 행동의 가치,
+        정책 신경망의 경우 각 행동의 확률값  
         """
-        with self.lock:
-            self.model.eval()
-            with torch.no_grad():
-                x = torch.from_numpy(sample).float().to(device)
-                pred = self.model(x).detach().cpu().numpy()
-                pred = pred.flatten()
+        with self.lock: # self.lock을 사용하여 스레드간의 간섭 방지
+            self.model.eval() # self.model.eval()을 호출하여 모델을 평가(evaluation) 모드로 설정, 드롭아웃 등 비활성화
+            # 예측에서는 기울기 계산이 필요없음
+            with torch.no_grad(): # torch.no_grad() 컨텍스트 매니저를 사용하여 이 블록 내의 연산에서는 그래디언트 계산을 하지 않도록 설정
+                x = torch.from_numpy(sample).float().to(device) # NumPy 배열에서 PyTorch 텐서로 샘플 데이터 변환
+                pred = self.model(x).detach().cpu().numpy() # self.model(x)을 호출하여 입력 텐서 x에 대한 예측을 수행
+                # detach()를 호출하여 계산 그래프에서 이 결과를 분리
+                # cpu()를 사용하여 데이터를 CPU 메모리로 이동시킨 후, .numpy()를 호출하여 결과를 NumPy 배열로 변환
+                pred = pred.flatten() # 다차원 > 1차원 배열로 평탄화
             return pred
 
     def train_on_batch(self, x, y):
         """
         배치 학습을 위한 데이터 생성
         """
+
+        # self.num_steps가 1보다 큰 경우, x는 시퀀스 데이터를 포함하므로, 
+        # 각 입력이 (self.num_steps, self.input_dim)의 형태를 갖도록 재구성
         if self.num_steps > 1:
-            x = np.array(x).reshape((-1, self.num_steps, self.input_dim))
+            x = np.array(x).reshape((-1, self.num_steps, self.input_dim)) # x를 넘파이 배열로 변환 및 형태 재구성
+            # -1을 사용하는 것은 해당 차원의 크기를 자동으로 추정
         else:
             x = np.array(x).reshape((-1, self.input_dim))
+
         loss = 0.
-        with self.lock:
-            self.model.train()
-            _x = torch.from_numpy(x).float().to(device)
+
+        with self.lock: # 스레드 락
+            self.model.train() # 학습 모드로 설정
+            _x = torch.from_numpy(x).float().to(device) # to(device)로 적절한 계산 장치(CPU 또는 GPU)에 할당
             _y = torch.from_numpy(y).float().to(device)
-            y_pred = self.model(_x)
-            _loss = self.criterion(y_pred, _y)
-            self.optimizer.zero_grad()
-            _loss.backward()
-            self.optimizer.step()
-            loss += _loss.item()
+            y_pred = self.model(_x) # _x에 대한 예측
+            _loss = self.criterion(y_pred, _y) # 예측값과, 레이블 _y 간의 손실 계산
+            self.optimizer.zero_grad() # 기울기 초기화
+            _loss.backward() # 손실 기울기 계산
+            self.optimizer.step() # 기울기를 사용해 모델의 파라미터 업데이트
+            loss += _loss.item() # numpy 값으로 손실을 변환하고 loss에 추가
         return loss
 
     def train_on_batch_for_ppo(self, x, y, a, eps, K):
+        """
+        Proximal Policy Optimization (PPO)
+        정책의 업데이트가 너무 멀리 가지 않도록 제한을 두어, 학습의 안정성을 유지
+        """
         if self.num_steps > 1:
             x = np.array(x).reshape((-1, self.num_steps, self.input_dim))
         else:
@@ -138,10 +153,11 @@ class Network:
             for _ in range(K):
                 y_pred = self.model(_x)
                 probs_pred = F.softmax(y_pred, dim=1)
+                # 확률비(rto)를 계산하고, 이를 사용하여 조정된 확률비(rto_adv)와 제한된 확률비(clp_adv)를 계산
                 rto = torch.exp(torch.log(probs[:, a]) - torch.log(probs_pred[:, a]))
                 rto_adv = rto * _y[:, a]
                 clp_adv = torch.clamp(rto, 1 - eps, 1 + eps) * _y[:, a]
-                _loss = -torch.min(rto_adv, clp_adv).mean()
+                _loss = -torch.min(rto_adv, clp_adv).mean() # 두 값의 최소값을 손실 함수로 사용하여 평균 손실을 계산
                 self.optimizer.zero_grad()
                 _loss.backward()
                 self.optimizer.step()
@@ -149,7 +165,13 @@ class Network:
         return loss
 
     @classmethod
+    # @classmethod는 메서드가 클래스 메서드임을 나타내는 데코레이터
+    # 클래스 메서드는 첫 번째 인자로 클래스 객체 cls를 자동으로 받음
+    # 객체를 생성할 필요가 없음
     def get_shared_network(cls, net='dnn', num_steps=1, input_dim=0, output_dim=0):
+        """
+        공유 신경망
+        """
         if net == 'dnn':
             return DNN.get_network_head((input_dim,), output_dim)
         elif net == 'lstm':
@@ -158,17 +180,22 @@ class Network:
             return CNN.get_network_head((num_steps, input_dim), output_dim)
 
     @abc.abstractmethod
+    # 추상 메서드 정의
+    # 반드시 상속받는 하위 클래스에서 구현
     def get_network_head(inp, output_dim):
         pass
 
     @staticmethod
     def init_weights(m):
+        """
+        모델 m의 가중치 초기화
+        """
         if isinstance(m, torch.nn.Linear) or isinstance(m, torch.nn.Conv1d):
-            torch.nn.init.normal_(m.weight, std=0.01)
+            torch.nn.init.normal_(m.weight, std=0.01) # 정규 분포
         elif isinstance(m, torch.nn.LSTM):
             for weights in m.all_weights:
                 for weight in weights:
-                    torch.nn.init.normal_(weight, std=0.01)
+                    torch.nn.init.normal_(weight, std=0.01) # 정규 분포로 반복적으로 초기화
 
     def save_model(self, model_path):
         """
@@ -190,10 +217,11 @@ class DNN(Network):
     def get_network_head(inp, output_dim):
         """
         신경망의 상단부를 생성하는 클래스 함수
+        배치 학습 : 큰 데이터 셋을 작은 데이터 셋으로 나누어 각각 학습 진행
         """
         return torch.nn.Sequential(
-            torch.nn.BatchNorm1d(inp[0]),
-            torch.nn.Linear(inp[0], 256),
+            torch.nn.BatchNorm1d(inp[0]), # 배치 정규화
+            torch.nn.Linear(inp[0], 256), # torch.nn.Linear(입력 특성(뉴런), 출력 특성(뉴런)), output=input⋅weight + bias
             torch.nn.BatchNorm1d(256),
             torch.nn.Dropout(p=0.1),
             torch.nn.Linear(256, 128),
@@ -209,6 +237,9 @@ class DNN(Network):
         )
 
     def predict(self, sample):
+        """
+        입력 데이터의 형태 조정
+        """
         sample = np.array(sample).reshape((1, self.input_dim))
         return super().predict(sample)
 
@@ -219,6 +250,9 @@ class LSTMNetwork(Network):
 
     @staticmethod
     def get_network_head(inp, output_dim):
+        """
+        2차원 입력 받음, num_steps 속성을 인자로 받음
+        """
         return torch.nn.Sequential(
             torch.nn.BatchNorm1d(inp[0]),
             LSTMModule(inp[1], 128, batch_first=True, use_last_only=True),
