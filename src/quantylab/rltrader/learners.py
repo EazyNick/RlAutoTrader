@@ -114,8 +114,6 @@ class ReinforcementLearner:
     def init_value_network(self, shared_network=None, loss='mse'):
         """
         Mean Squared Error (MSE)는 연속적인 수치 값을 예측하는 회귀 문제에서 주로 사용되는 손실 함수
-
-
         """
         if self.net == 'dnn':
             self.value_network = DNN(
@@ -472,10 +470,11 @@ class ActorCriticLearner(ReinforcementLearner):
         value_network_path=None, policy_network_path=None, **kwargs):
         super().__init__(*args, **kwargs)
         if shared_network is None:
+            # 공유 신경망 생성
             self.shared_network = Network.get_shared_network(
                 net=self.net, num_steps=self.num_steps, 
                 input_dim=self.num_features,
-                output_dim=self.agent.NUM_ACTIONS)
+                output_dim=self.agent.NUM_ACTIONS)  
         else:
             self.shared_network = shared_network
         self.value_network_path = value_network_path

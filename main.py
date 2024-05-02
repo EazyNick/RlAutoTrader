@@ -18,17 +18,17 @@ if __name__ == '__main__':
     # 계산 백엔드(--backend), 데이터의 시작일과 종료일, 학습률(--lr), RL 알고리즘의 할인율, 거래 시뮬레이션의 시작 잔액을 설정하는 옵션을 포함
     parser = argparse.ArgumentParser() # 스크립트의 명령줄 인터페이스(CLI)를 정의
     parser.add_argument('--mode', choices=['train', 'test', 'update', 'predict'], default='train')
-    parser.add_argument('--ver', choices=['v1', 'v2', 'v3', 'v4', 'v4.1', 'v4.2'], default='v4.1')
+    parser.add_argument('--ver', choices=['v1', 'v2', 'v3', 'v4', 'v4.1', 'v4.2'], default='v3')
 
     # 사용자가 실행 또는 작업의 이름을 지정할 수 있도록 하는 인수 --name을 추가합니다. 
     # 사용자가 이름을 제공하지 않으면 utils.get_time_str()을 사용하여 기본값이 생성되며, 이 값은 고유성을 보장하기 위해 타임스탬프가 있는 문자열을 만듭니다.
-    parser.add_argument('--name', default=utils.get_time_str()) 
+    parser.add_argument('--name', default='005930') 
     parser.add_argument('--stock_code', nargs='+', default='005930') # 종목코드
     parser.add_argument('--rl_method', choices=['dqn', 'pg', 'ac', 'a2c', 'a3c', 'ppo', 'monkey'], default='a2c') # 알고리즘 선택
-    parser.add_argument('--net', choices=['dnn', 'lstm', 'cnn', 'monkey'], default='dnn') #신경망 선택
+    parser.add_argument('--net', choices=['dnn', 'lstm', 'cnn', 'monkey'], default='lstm') #신경망 선택
     parser.add_argument('--backend', choices=['pytorch', 'tensorflow', 'plaidml'], default='pytorch') #신경망 연산을 위한 백엔드
-    parser.add_argument('--start_date', default='20200101') #사용할(학습할) 데이터 시작일
-    parser.add_argument('--end_date', default='20201231') #데이터 종료일
+    parser.add_argument('--start_date', default='20180101') #사용할(학습할) 데이터 시작일
+    parser.add_argument('--end_date', default='20181231') #데이터 종료일
 
     # 학습률(learning rate)은 기계학습에서 모델이 학습하는 속도를 조절하는 매개변수로, 
     # 너무 높으면 학습이 불안정해질 수 있고 너무 낮으면 학습이 너무 느려질 수 있습니다.
@@ -105,62 +105,61 @@ if __name__ == '__main__':
     list_min_trading_price = []
     list_max_trading_price = []
 
-    for stock_code in args.stock_code:
-        # 차트 데이터, 학습 데이터 준비
-        chart_data, training_data = data_manager.load_data(
-            stock_code, args.start_date, args.end_date, ver=args.ver)
+    # 차트 데이터, 학습 데이터 준비
+    chart_data, training_data = data_manager.load_data(
+        args.stock_code, args.start_date, args.end_date, ver=args.ver)
 
-        assert len(chart_data) >= num_steps
-        
-        # 최소/최대 단일 매매 금액 설정
-        min_trading_price = 100000
-        max_trading_price = 10000000
+    assert len(chart_data) >= num_steps
+    
+    # 최소/최대 단일 매매 금액 설정
+    min_trading_price = 100000
+    max_trading_price = 10000000
 
-        # 공통 파라미터 설정
-        common_params = {'rl_method': args.rl_method, 
-            'net': args.net, 'num_steps': num_steps, 'lr': args.lr,
-            'balance': args.balance, 'num_epoches': num_epoches, 
-            'discount_factor': args.discount_factor, 'start_epsilon': start_epsilon,
-            'output_path': output_path, 'reuse_models': reuse_models}
+    # 공통 파라미터 설정
+    common_params = {'rl_method': args.rl_method, 
+        'net': args.net, 'num_steps': num_steps, 'lr': args.lr,
+        'balance': args.balance, 'num_epoches': num_epoches, 
+        'discount_factor': args.discount_factor, 'start_epsilon': start_epsilon,
+        'output_path': output_path, 'reuse_models': reuse_models}
 
-        # 강화학습 시작
-        learner = None
-        if args.rl_method != 'a3c':
-            common_params.update({'stock_code': stock_code,
-                'chart_data': chart_data, 
-                'training_data': training_data,
-                'min_trading_price': min_trading_price, 
-                'max_trading_price': max_trading_price})
-            if args.rl_method == 'dqn':
-                learner = DQNLearner(**{**common_params, 
-                    'value_network_path': value_network_path})
-            elif args.rl_method == 'pg':
-                learner = PolicyGradientLearner(**{**common_params, 
-                    'policy_network_path': policy_network_path})
-            elif args.rl_method == 'ac':
-                learner = ActorCriticLearner(**{**common_params, 
-                    'value_network_path': value_network_path, 
-                    'policy_network_path': policy_network_path})
-            elif args.rl_method == 'a2c':
-                learner = A2CLearner(**{**common_params, 
-                    'value_network_path': value_network_path, 
-                    'policy_network_path': policy_network_path})
-            elif args.rl_method == 'ppo':
-                learner = PPOLearner(**{**common_params, 
-                    'value_network_path': value_network_path, 
-                    'policy_network_path': policy_network_path})
-            elif args.rl_method == 'monkey':
-                common_params['net'] = args.rl_method
-                common_params['num_epoches'] = 10
-                common_params['start_epsilon'] = 1
-                learning = False
-                learner = ReinforcementLearner(**common_params)
-        else:
-            list_stock_code.append(stock_code)
-            list_chart_data.append(chart_data)
-            list_training_data.append(training_data)
-            list_min_trading_price.append(min_trading_price)
-            list_max_trading_price.append(max_trading_price)
+    # 강화학습 시작
+    learner = None
+    if args.rl_method != 'a3c':
+        common_params.update({'stock_code': args.stock_code,
+            'chart_data': chart_data, 
+            'training_data': training_data,
+            'min_trading_price': min_trading_price, 
+            'max_trading_price': max_trading_price})
+        if args.rl_method == 'dqn':
+            learner = DQNLearner(**{**common_params, 
+                'value_network_path': value_network_path})
+        elif args.rl_method == 'pg':
+            learner = PolicyGradientLearner(**{**common_params, 
+                'policy_network_path': policy_network_path})
+        elif args.rl_method == 'ac':
+            learner = ActorCriticLearner(**{**common_params, 
+                'value_network_path': value_network_path, 
+                'policy_network_path': policy_network_path})
+        elif args.rl_method == 'a2c':
+            learner = A2CLearner(**{**common_params, 
+                'value_network_path': value_network_path, 
+                'policy_network_path': policy_network_path})
+        elif args.rl_method == 'ppo':
+            learner = PPOLearner(**{**common_params, 
+                'value_network_path': value_network_path, 
+                'policy_network_path': policy_network_path})
+        elif args.rl_method == 'monkey':
+            common_params['net'] = args.rl_method
+            common_params['num_epoches'] = 10
+            common_params['start_epsilon'] = 1
+            learning = False
+            learner = ReinforcementLearner(**common_params)
+    else:
+        list_stock_code.append(args.stock_code)
+        list_chart_data.append(chart_data)
+        list_training_data.append(training_data)
+        list_min_trading_price.append(min_trading_price)
+        list_max_trading_price.append(max_trading_price)
 
     if args.rl_method == 'a3c':
         learner = A3CLearner(**{
