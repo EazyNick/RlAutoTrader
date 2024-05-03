@@ -119,8 +119,8 @@ class Agent:
             # 예측 값이 없을 경우 탐험
             epsilon = 1
         else:
-            # 값이 모두 같은 경우 탐험
             maxpred = np.max(pred)
+            # 값이 모두 같은 경우 탐험
             if (pred == maxpred).all():
                 epsilon = 1
 

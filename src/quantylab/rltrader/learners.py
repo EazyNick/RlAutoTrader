@@ -35,7 +35,7 @@ class ReinforcementLearner:
     # min_trading_price: 거래 가능한 최소 주식 가격
     # max_trading_price: 거래 가능한 최대 주식 가격
     # net: 사용할 신경망의 종류를 지정, 'dnn'은 심층 신경망, 'lstm'은 장단기 메모리 네트워크, 'cnn'은 합성곱 신경망
-    # num_steps: 한 번에 고려할 시간 스텝의 수. 이 값은 주로 LSTM 같은 순차 데이터를 처리하는 신경망에서 사용
+    # num_steps: 한 번에 고려할 시간 스텝의 수(며칠의 데이터로 다음날의 주식을 예측할 건지). 이 값은 주로 LSTM 같은 순차 데이터를 처리하는 신경망에서 사용
     # lr: 학습률(learning rate), 신경망 학습 시 가중치 조정의 정도를 결정
     # discount_factor: 할인율, 미래 보상을 현재 가치로 환산할 때 사용되는 계수
     # num_epoches: 학습을 수행할 에포크 수, 한 에포크는 전체 학습 데이터를 한 번씩 사용하는 것을 의미
@@ -57,6 +57,7 @@ class ReinforcementLearner:
                 value_network_activation='linear', policy_network_activation='sigmoid',
                 output_path='', reuse_models=True, gen_output=True):
         # 인자 확인
+        # assert는 가정 설명문, 조건이 일치하지 않으면 에러 발생
         assert min_trading_price > 0
         assert max_trading_price > 0
         assert max_trading_price >= min_trading_price
@@ -77,7 +78,7 @@ class ReinforcementLearner:
         self.training_data = training_data
         self.sample = None
         self.training_data_idx = -1
-        # 벡터 크기 = 학습 데이터 벡터 크기 + 에이전트 상태 크기
+        # 벡터 크기 = 학습 데이터 벡터 크기(지표 개수) + 에이전트 상태 크기(매수, 매도, 관망)
         self.num_features = self.agent.STATE_DIM
         if self.training_data is not None:
             self.num_features += self.training_data.shape[1]
@@ -93,8 +94,8 @@ class ReinforcementLearner:
         # 가시화 모듈
         self.visualizer = Visualizer()
         # 메모리
-        self.memory_sample = []
-        self.memory_action = []
+        self.memory_sample = [] # 데이터 개수(행)
+        self.memory_action = [] 
         self.memory_reward = []
         self.memory_value = []
         self.memory_policy = []
@@ -110,7 +111,7 @@ class ReinforcementLearner:
         self.output_path = output_path
         self.gen_output = gen_output
 
-    # 가치(Value) 신경망 초기화
+# 가치(Value) 신경망 초기화
     def init_value_network(self, shared_network=None, loss='mse'):
         """
         Mean Squared Error (MSE)는 연속적인 수치 값을 예측하는 회귀 문제에서 주로 사용되는 손실 함수
@@ -138,7 +139,7 @@ class ReinforcementLearner:
         if self.reuse_models and os.path.exists(self.value_network_path):
             self.value_network.load_model(model_path=self.value_network_path)
 
-    # 정책(Policy) 신경망 초기화
+    # 정책(Policy) 신경망 초기화, 가치 신경망과 달리 활성화 함수로 시그모이드 함수 사용
     def init_policy_network(self, shared_network=None, loss='binary_crossentropy'):
         """
         Binary Crossentropy는 이진 분류 문제에서 사용되는 손실 함수로, 모델이 예측한 확률을 실제 레이블과 비교하여 손실을 계산
@@ -278,6 +279,7 @@ class ReinforcementLearner:
         epoch_win_cnt = 0
 
         # 에포크 반복
+        # tqdm - 진행률 바 표시
         for epoch in tqdm(range(self.num_epoches)):
             time_start_epoch = time.time()
 
@@ -609,6 +611,7 @@ class PPOLearner(A2CLearner):
         self.K = K
         
     def get_batch(self):
+        # 각 데이터를 최신 데이터부터 학습
         memory = zip(
             reversed(self.memory_sample),
             reversed(self.memory_action),
@@ -616,7 +619,7 @@ class PPOLearner(A2CLearner):
             reversed(self.memory_policy),
             reversed(self.memory_reward),
         )
-        x = np.zeros((len(self.memory_sample), self.num_steps, self.num_features))
+        x = np.zeros((len(self.memory_sample), self.num_steps, self.num_features)) # 신경망에 입력될 특성 데이터 배열
         y_value = np.zeros((len(self.memory_sample), self.agent.NUM_ACTIONS))
         y_policy = np.zeros((len(self.memory_sample), self.agent.NUM_ACTIONS))
         value_max_next = 0

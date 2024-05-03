@@ -278,8 +278,6 @@ def load_data_v3_v4(code, date_from, date_to, ver):
     # 종목 데이터
     df_stockfeatures = None
     for filename in os.listdir(os.path.join(settings.BASE_DIR, 'data', ver)):
-        print("filename: ", filename)
-        print("code_str: ", code)
         if filename.startswith(code):
             df_stockfeatures = pd.read_csv(
                 os.path.join(settings.BASE_DIR, 'data', ver, filename), 

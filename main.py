@@ -24,7 +24,7 @@ if __name__ == '__main__':
     # 사용자가 이름을 제공하지 않으면 utils.get_time_str()을 사용하여 기본값이 생성되며, 이 값은 고유성을 보장하기 위해 타임스탬프가 있는 문자열을 만듭니다.
     parser.add_argument('--name', default='005930') 
     parser.add_argument('--stock_code', nargs='+', default='005930') # 종목코드
-    parser.add_argument('--rl_method', choices=['dqn', 'pg', 'ac', 'a2c', 'a3c', 'ppo', 'monkey'], default='a2c') # 알고리즘 선택
+    parser.add_argument('--rl_method', choices=['dqn', 'pg', 'ac', 'a2c', 'a3c', 'ppo', 'monkey'], default='dqn') # 알고리즘 선택
     parser.add_argument('--net', choices=['dnn', 'lstm', 'cnn', 'monkey'], default='lstm') #신경망 선택
     parser.add_argument('--backend', choices=['pytorch', 'tensorflow', 'plaidml'], default='pytorch') #신경망 연산을 위한 백엔드
     parser.add_argument('--start_date', default='20180101') #사용할(학습할) 데이터 시작일
