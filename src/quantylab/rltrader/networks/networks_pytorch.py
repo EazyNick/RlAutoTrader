@@ -255,7 +255,11 @@ class LSTMNetwork(Network):
         """
         return torch.nn.Sequential(
             torch.nn.BatchNorm1d(inp[0]),
-            LSTMModule(inp[1], 128, batch_first=True, use_last_only=True),
+            # inp[1]은 입력 데이터의 특성(feature)의 수
+            # 128: LSTM 네트워크의 히든 유닛의 수
+            # batch_first: 입력 데이터의 배치 크기가 첫 번째 차원에 오도록 지정
+            # use_last_only: LSTM 네트워크의 출력에서 마지막 시퀀스의 결과만을 사용
+            LSTMModule(inp[1], 128, batch_first=True, use_last_only=True), 
             torch.nn.BatchNorm1d(128),
             torch.nn.Dropout(p=0.1),
             torch.nn.Linear(128, 64),
