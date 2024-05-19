@@ -118,5 +118,8 @@ NotImplementedError: Cannot convert a symbolic Tensor (lstm/strided_slice:0) to 
 ```
 https://github.com/keras-team/keras/issues/14265
 https://pypi.org/project/h5py/#history
+
+## Custom
+main.py 디버깅 기능 수정 - 24.05.19
 pip install h5py==2.10.0
 ```
